@@ -263,7 +263,7 @@ section h2.sec{font-family:var(--read);font-size:22px;font-weight:600}
   <section class="head">
     <div class="eyebrow">Parte 3 · Fala · grave suas respostas</div>
     <h1>Oito perguntas sobre você, sua família e sua casa</h1>
-    <p>Leia ou ouça cada pergunta, pense alguns segundos e grave sua resposta em inglês. Tente falar de 30 a 60 segundos: responda, dê um detalhe e um exemplo. A transcrição e a correção gramatical aparecem logo depois de cada gravação. Ouça sua resposta, confira as correções e marque o que achou difícil. No final, baixe os áudios e envie para a professora.</p>
+    <p>Leia ou ouça cada pergunta, pense alguns segundos e grave sua resposta em inglês. Tente falar de 30 a 60 segundos: responda, dê um detalhe e um exemplo. A transcrição do que você falou aparece logo depois de cada gravação. Ouça sua resposta, leia a transcrição e marque o que achou difícil. No final, baixe os áudios e envie para a professora.</p>
     <p class="note">Os áudios ficam só neste navegador e somem se a página for recarregada. Baixe antes de fechar. A transcrição funciona melhor no Chrome ou no Edge; o reconhecimento de voz pode corrigir sozinho alguns erros, então ouça também a gravação.</p>
     <div class="setup"><button class="btn ghost small" id="convReroll">Sortear outras perguntas</button></div>
     <p class="status bad" id="micNote"></p>
@@ -597,8 +597,7 @@ function cardHTML(s,i){
     ${isRec&&srOK?`<p class="said live" id="live${i}">Fale em inglês… a transcrição aparece aqui.</p>`:''}
     ${has?`<div class="count"><audio controls src="${has.url}" style="max-width:100%"></audio><button class="btn ghost small" data-dl="${i}">Baixar áudio</button></div>`:''}
     ${isRec?'':(C.tr[i].trim()?`<div><div class="scale">Transcrição automática</div>
-      <div id="ck${i}">${C.chk[i]&&C.chk[i].text===C.tr[i].trim()?ltHTML(C.chk[i]):`<p class="said">${esc(C.tr[i])}</p>`}</div>
-      <span class="status" id="cs${i}"></span></div>`:(srOK?(has||C.recorded[i]?'<p class="note">Não foi possível transcrever esta gravação. Tente gravar de novo, falando perto do microfone.</p>':''):'<p class="note">A transcrição e a correção funcionam no Chrome ou no Edge. Neste navegador, só a gravação está disponível.</p>'))}
+      <p class="said">${esc(C.tr[i])}</p></div>`:(srOK?(has||C.recorded[i]?'<p class="note">Não foi possível transcrever esta gravação. Tente gravar de novo, falando perto do microfone.</p>':''):'<p class="note">A transcrição funciona no Chrome ou no Edge. Neste navegador, só a gravação está disponível.</p>'))}
     <details><summary class="note" style="cursor:pointer">Linguagem útil para esta resposta</summary><div class="lang" style="margin-top:8px">${t.lang}</div></details>
     <div><div class="scale" style="margin-bottom:6px">Depois de ouvir sua resposta: o que foi difícil?</div>
     <div class="chips">${[...t.issues,...GENERAL.filter(g=>!t.issues.includes(g))].map(id=>`<button class="chip" aria-pressed="${C.self[i].includes(id)}" data-self="${i}" data-i="${id}">${TOPICS[id].l}</button>`).join('')}</div></div>
@@ -612,16 +611,6 @@ function renderSpeak(){
   $('dlAll').disabled=!rec.filter(Boolean).length;$('dlAll').hidden=!micOK;
 }
 function renderCard(i){const el=$('card'+i);if(el)el.outerHTML=cardHTML(S.conv.set[i],i)}
-const inflight={};
-async function checkSpeech(i,force){
-  const text=S.conv.tr[i].trim();if(!text||inflight[i])return;
-  if(!force&&S.conv.chk[i]&&S.conv.chk[i].text===text)return;
-  inflight[i]=true;
-  const st=$('cs'+i);if(st){st.className='status';st.textContent='Corrigindo…'}
-  try{const res=await ltCheck(text,true);res.kind='s';S.conv.tr[i]=text;S.conv.chk[i]=res;save();renderCard(i)}
-  catch(e){const s2=$('cs'+i);if(s2){s2.className='status bad';s2.innerHTML=esc(LTERR[e.code]||LTERR.http)+` <button class="btn ghost small" data-check="${i}">Tentar de novo</button>`}}
-  finally{inflight[i]=false}
-}
 async function startRec(i){
   if(active) return;
   let stream;
@@ -636,7 +625,6 @@ async function startRec(i){
     if(rec[i])URL.revokeObjectURL(rec[i].url);
     rec[i]={blob,url:URL.createObjectURL(blob),ext:/mp4|aac|m4a/.test(type)?'m4a':'webm'};
     S.conv.recorded[i]=true;save();dots();renderSpeak();
-    if(!recogPending) checkSpeech(i);
   };
   S.conv.tr[i]='';S.conv.chk[i]=null;
   let recog=null,finalText='';recogPending=false;
@@ -649,7 +637,7 @@ async function startRec(i){
       recog.onend=()=>{
         if(active&&active.i===i&&srOK){try{recog.start()}catch(e){}return}
         recogPending=false;S.conv.tr[i]=finalText.trim();save();
-        if(!active){renderSpeak();checkSpeech(i)}
+        if(!active)renderSpeak()
       };
       recog.start();recogPending=true;
     }catch(e){srOK=false;recog=null}
@@ -665,7 +653,6 @@ $('speakList').addEventListener('click',e=>{
   const say=e.target.closest('[data-say]');if(say){const u=new SpeechSynthesisUtterance(qText(S.conv.set[+say.dataset.say]));u.lang='en-US';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u);return}
   const rb=e.target.closest('[data-rec]');if(rb){const i=+rb.dataset.rec;active&&active.i===i?stopRec():startRec(i);return}
   const d=e.target.closest('[data-dl]');if(d){dl(+d.dataset.dl);return}
-  const ck=e.target.closest('[data-check]');if(ck){checkSpeech(+ck.dataset.check,true);return}
   const c=e.target.closest('[data-self]');if(c){const a=S.conv.self[+c.dataset.self],k=a.indexOf(c.dataset.i);k<0?a.push(c.dataset.i):a.splice(k,1);save();c.setAttribute('aria-pressed',k<0)}
 });
 $('convReroll').onclick=()=>{S.conv=convState();save();renderSpeak()};
@@ -901,7 +888,6 @@ function collect(){
   if(S.reading.done){const r=readingStats();Object.entries(r.miss).forEach(([k,n])=>add(k,'Leitura',n))}
   if(S.listen.done){Object.entries(listenStats().miss).forEach(([k,n])=>add(k,'Escuta',n))}
   S.conv.self.forEach(a=>a.forEach(id=>add(id,'Fala',2)));
-  (S.conv.chk||[]).forEach(c=>{if(c)c.m.forEach(m=>add(m.topic,'Fala',1))});
   (S.writing.lt||[]).forEach(c=>{if(c)c.m.forEach(m=>add(m.topic,'Escrita',1))});
   S.writing.fb.forEach(f=>{if(!f)return;(f.topics||[]).forEach(id=>add(id,'Escrita',1));(f.errors||[]).forEach(e=>add(e.topic,'Escrita',1))});
   S.writing.manual.forEach(id=>add(id,'Escrita',2));
@@ -934,7 +920,7 @@ function renderReport(){
       'Fala: '+nRec+'/'+S.conv.set.length+' respostas gravadas',
       'Escrita: '+(wLvl?'CEFR '+wLvl:'não corrigida'),'','TÓPICOS PARA REVISAR',
       ...list.map(x=>`- ${TOPICS[x.id].l} (${x.src.join(', ')}): ${TOPICS[x.id].tip}`),
-      ...S.conv.set.flatMap((x,i)=>(S.conv.tr[i]||'').trim()?['','FALA '+(i+1)+': '+qText(x),S.conv.tr[i].trim()+(S.conv.chk[i]?' ('+S.conv.chk[i].m.length+' correção(ões))':'')]:[]),
+      ...S.conv.set.flatMap((x,i)=>(S.conv.tr[i]||'').trim()?['','FALA '+(i+1)+': '+qText(x),S.conv.tr[i].trim()]:[]),
       ...S.writing.prompts.flatMap((pid,i)=>(S.writing.texts[i]||'').trim()?['','ESCRITA '+(i+1)+': '+WP.find(x=>x.id===pid).t,S.writing.texts[i].trim()+' ('+words(S.writing.texts[i])+' palavras)']:[])].join('\n');
     try{await navigator.clipboard.writeText(txt);$('repStatus').textContent='Relatório copiado.'}catch(e){$('repStatus').textContent='Não deu para copiar automaticamente. Selecione o texto da página.'}
   };
